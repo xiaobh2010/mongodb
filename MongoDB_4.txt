@@ -1,0 +1,242 @@
+一、聚合操作（续）
+　　
+　　１、聚合操作符
+
+　　　 【１】$match:数据筛选
+　　　　
+　　　　*$match值的写法同query参数
+
+				e.g.  筛选年龄大于等于二十的文档
+				db.class0.aggregate({$match:{age:{$gte:20}})
+
+       【２】$limit  显示集合中的前几条文档
+
+				e.g.  显示集合中前三条文档
+				db.class0.aggregate({$limit:3})
+
+       【３】$skip  跳过前几条文档，显示后面的
+
+        e.g.  跳过前三条文档
+        db.class0.aggregate({$skip:3})
+
+       【４】$sort  对集合文档排序
+
+				e.g.　　将集合文档按年龄升序排序
+				db.class.aggregate({$sort:{age:1}})
+
+
+    2、聚合管道
+    　　
+    　　定义：指将多个聚合操作合并到一起完成，即将上一个           集合操作的结果作为下一个集合操作的对象，直           到所有聚合操作的完成
+    　　
+    　　形式：db.collection.aggregate([{},{},{}...])
+       
+			  e.g.将文档按年龄排序，然后不显示_id
+        db.class0.aggregate([{$sort:{age:1}},{$project:{_id:0}}])
+
+
+练习：
+　　　使用grade
+　　　１、将所有男生按照年龄升序排序结果不显示_id
+       
+			 db.class0.aggregate([{$sort:{age:1}},{$match:{sex:'m'}},{$project:{_id:0}}])
+
+　　　２、统计一下班级是否有重名同学
+
+      db.class0.aggregate([{$group:{_id:'$name',num:{$sum:1}}},{$match:{num:{$gt:1}}}])
+
+
+二. 固定集合
+
+  定义：指的是mongodb中创建固定大小的集合，称之为固定集合
+
+	特点：1. 能够淘汰早期数据
+	      2. 可以控制集合大小
+				3. 数据插入，查找操作速度快
+	
+	使用：日志处理，临时缓存
+
+	创建：
+	db.createCollection(collection,{capped:true,size:10000,max:20})
+	  
+		capped:true  表示固定集合
+		size：10000  表示固定集合大小  字节
+		max：20      表示最多存放所少个文档
+
+
+三. 文件存储
+
+  1.文件存储数据库方式
+	  
+		【1】存储路径 ：将本地文件所在路径以字符串存储到数据库
+    
+		    优点：节省数据库空间
+				缺点：当数据库或者文件发生变动必须要修改数据库内容
+		
+		【2】存储文件本身：将文件转换为二进制存储到数据库
+
+		    优点：文件在数据库中，不容易丢失
+				缺点：占用数据库空间较多，文件存取效率不高
+
+  2. GridFS文件存储方案
+	  
+		目的：更好的存取MongoDB中的大文件(>16M)
+
+    GridFS说明：
+		  1. 在mongodb数据库中创建两个集合共同存储文件
+			2. fs.files集合用于存储文件信息，为每个文件建议一个信息文档
+			3. fs.chunks集合中建立与fs.files集合对应文件文档的关连，将文件分块以二进制格式存储。
+
+    存取方法
+		  1. 存储:  mongofiles -d  dbname put  file
+
+			  e.g. 将本地test.mp4文件存储到grid数据库
+				     mongofiles -d grid put test.mp4
+
+			2. 提取： mongofiles -d  dbname get  file
+
+			  e.g. 从grid数据库获取test.mp4文件
+						 mongofiles -d grid get test.mp4
+    
+		优缺点 
+		  优点：存储方便，提供了较好的存取命令
+			缺点：读写效率较低，不建议存储小文件
+		  
+
+四. mongo shell对JavaScript支持
+
+  * mongo shell 界面中支持基本的JS程序
+	* 通过js也可以处理数据库中简单的逻辑问题
+
+
+五. Python 操作MongoDB 
+
+  1. 第三方模块 ： pymongo
+	   安装方法： sudo  pip3  install  pymongo
+
+  2. 操作步骤
+	  【1】 创建mongodb数据库连接对象
+				
+				conn = pymongo.MongoClient('localhost',27017)
+		
+		【2】 生成操作的数据库对象
+
+				db = conn.stu
+				db = conn['stu']
+		
+		【3】 生成集合对象
+				
+				myset = db.class0
+				myset = db['class0']
+		
+		【4】 通过集合对象调用接口完成数据操作
+		【5】 关闭数据库连接
+		    conn.close()
+
+  3. 数据基本操作
+	
+	  【1】 插入文档
+
+		  insert_one() 插入一条文档
+			insert_many() 插入多个文档
+			insert() 插入一条或多条文档
+			save() 保存文档，当_id冲突时覆盖原有文档
+
+		【2】 查找文档
+		  
+			find()  查找所有符合条件文档
+			find_one() 查找第一个符合条件文档
+
+			find(query，field)
+			功能： 查找所有文档
+			参数： 形式同mongoshell 中find
+			返回： 游标对象
+
+			* 所有的操作符使用加上引号，作为字符串形式
+			* mongodb中true false null使用python中True False None表示
+
+			cursor对象属性函数
+
+			  next()   获取下一个文档
+				limit()  获取前几条文档
+				skip()   跳过几条
+				count()  计数
+				sort()   排序
+
+				* 当游标使用for或者next取值后就不能使用skip，limit，sort操作了
+				
+				* sort 在pymongo中参数表达与mongoshell中不同
+				  e.g. sort([('age',1)]) 表示age升序排序
+
+      find_one(query,field)
+			功能：查找第一个符合条件文档
+			参数：同find
+			返回值：返回一个字典
+
+		【3】 修改操作
+
+		  update_one()  修改一个文档
+			update_many() 修改多个文档
+			update()  修改一个或者多个文档
+		
+		【4】 删除操作
+
+		  delete_one()  删除一个文档
+			delete_many()  删除多个文档
+			remove() 删除一个或者多个文档
+
+    【5】 复合操作
+		  
+			find_one_and_update()
+			find_one_and_delete()
+
+
+  4. 数据库索引聚合操作
+
+    【1】 索引操作
+		  
+			create_index()
+			功能：创建索引
+			参数：二元元组构成列表 
+						e.g. [('age',1)] 表示对age创建正向索引
+						
+						* 直接写域名即表示对该域创建正向索引
+			返回：索引名称
+			
+			list_indexes()  查看索引
+			drop_index()  删除索引
+			drop_indexes()  删除所有索引
+
+    【2】 聚合操作
+		  
+			aggregate()
+			功能： 完成聚合操作
+			参数： 聚合管道 同mongoshell中聚合
+			返回值：数据操作结果游标对象
+
+
+  5. 文件存储
+		
+		步骤：
+	    1. 导入bson二进制类型模块，连接数据库				
+				 import bson.binary
+
+			2. 选择要存储的文件使用rb方式读取内容
+
+			3. 将读取的内容转换为bson格式
+
+				 content = bson.binary.Binary(data)
+				 功能：将bytes字串转换为bson形式
+				 参数：bytes字串
+				 返回值：转换后的数据
+
+			4. 将内容插入数据库
+			   
+
+	
+
+
+
+
+
+
